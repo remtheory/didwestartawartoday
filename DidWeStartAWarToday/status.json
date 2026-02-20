@@ -1,0 +1,17 @@
+{
+  "status": "unclear",
+  "tagline": "Something happened. Lawyers are arguing about what to call it.",
+  "updated": "2026-02-20T12:00:00Z",
+  "headlines": [
+    {
+      "title": "Pentagon Reports No New Military Operations Initiated Overseas",
+      "url": "https://reuters.com",
+      "source": "Reuters"
+    },
+    {
+      "title": "U.S. Military Maintains Existing Deployments, No New Escalations",
+      "url": "https://apnews.com",
+      "source": "AP News"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "name": "didwestartawartoday",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Did the US start a war today? Updated daily.",
+  "scripts": {
+    "update": "node scripts/update-status.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
