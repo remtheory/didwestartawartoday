@@ -1,17 +1,17 @@
 {
-  "status": "no",
-  "tagline": "Quiet imperialism, but nothing new today.",
-  "updated": "2026-02-20T12:00:00Z",
+  "status": "unclear",
+  "tagline": "US military builds up near Iran while Britain quietly hides the keys.",
+  "updated": "2026-02-21T17:11:22.317Z",
   "headlines": [
     {
-      "title": "Pentagon Reports No New Military Operations Initiated Overseas",
-      "url": "https://reuters.com",
-      "source": "Reuters"
+      "title": "Tracking the rapid US military build-up near Iran",
+      "url": "https://www.aljazeera.com",
+      "source": "Al Jazeera English"
     },
     {
-      "title": "U.S. Military Maintains Existing Deployments, No New Escalations",
-      "url": "https://apnews.com",
-      "source": "AP News"
+      "title": "UK blocking US from using its bases to attack Iran – media",
+      "url": "https://www.rt.com",
+      "source": "RT"
     }
   ]
 }
