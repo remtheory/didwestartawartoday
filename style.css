@@ -27,7 +27,7 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   background-color: var(--color-no);
   transition: var(--transition);
   padding: 3rem 1.5rem 2rem;
@@ -270,6 +270,14 @@ body.has-conflict .headline-item {
   color: rgba(255, 255, 255, 0.5);
   line-height: 1.6;
   font-style: italic;
+}
+
+.conflict-who-benefits a {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.conflict-who-benefits a:hover {
+  color: #fff;
 }
 
 /* ── Footer ── */

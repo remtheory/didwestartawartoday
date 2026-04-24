@@ -1,7 +1,8 @@
 {
   "status": "ongoing",
+  "statusLock": true,
   "tagline": "No new wars today. The existing one continues.",
-  "updated": "2026-03-02T12:00:00Z",
+  "updated": "2026-04-07T12:00:00Z",
   "headlines": [
     {
       "title": "Pentagon Reports No New Military Operations Initiated Overseas",

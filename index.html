@@ -17,6 +17,30 @@
   <meta name="twitter:title" content="Did We Start A War Today?" />
   <meta name="twitter:description" content="A daily answer to one very specific question." />
 
+  <!-- SEO -->
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://didwestartawartoday.com/" />
+
+  <!-- Security -->
+  <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self'; frame-src https://www.youtube.com; object-src 'none'" />
+
+  <!-- Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "Did We Start A War Today?",
+    "url": "https://didwestartawartoday.com",
+    "description": "A daily answer to one question: did the United States start or significantly escalate a war today?",
+    "author": {
+      "@type": "Person",
+      "name": "Rachel Murray",
+      "url": "https://remtheory.com"
+    }
+  }
+  </script>
+
   <link rel="stylesheet" href="style.css" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌐</text></svg>" />
 </head>
@@ -36,8 +60,8 @@
       <div class="headlines" id="headlines" aria-label="Source headlines"></div>
     </div>
 
-    <!-- ── Conflict sidebar (only visible when activeConflict: true) ── -->
-    <aside class="conflict-sidebar" id="conflict-sidebar" hidden>
+    <!-- ── Conflict sidebar ── -->
+    <aside class="conflict-sidebar" id="conflict-sidebar">
       <p class="conflict-label" id="conflict-label"></p>
 
       <hr class="sidebar-divider" />
@@ -53,6 +77,11 @@
             Conflict index via ACLED
           </a>
         </p>
+        <p class="conflict-casualties">
+          <a href="https://www.economist.com/interactive/trump-approval-tracker" target="_blank" rel="noopener noreferrer">
+            Trump approval tracker via The Economist
+          </a>
+        </p>
       </div>
 
       <div class="conflict-video">
@@ -64,8 +93,6 @@
           allowfullscreen>
         </iframe>
       </div>
-
-      <div class="sidebar-articles" id="sidebar-articles" aria-label="Latest articles"></div>
 
       <p class="conflict-who-benefits">
         Ask yourself who war benefits. It's not you. Remember when they say "we can't afford universal healthcare" — they have no problem paying for war. <a href="https://www.youtube.com/watch?v=_gyDzUgGP1M" target="_blank" rel="noopener noreferrer">Don't think for one second this is making us safer.</a>
@@ -139,36 +166,20 @@
           'Last checked: ' + formatDate(updated);
       }
 
-      // Active conflict sidebar
-      const sidebarEl = document.getElementById('conflict-sidebar');
+      // Sidebar — always visible
+      document.body.classList.add('has-conflict');
+
       if (activeConflict && conflictStartDate) {
         const start = new Date(conflictStartDate);
         const now = new Date();
         const dayCount = Math.floor((now - start) / (1000 * 60 * 60 * 24)) + 1;
         const label = `${conflictName || 'Active conflict'} — Day ${dayCount}`;
         document.getElementById('conflict-label').textContent = label;
-
-        const link = document.getElementById('conflict-casualties-link');
-        if (casualtiesLabel) link.textContent = casualtiesLabel;
-        if (casualtiesUrl) link.href = casualtiesUrl;
-
-        // Populate sidebar with all fetched headlines (broader war coverage)
-        const sidebarArticles = document.getElementById('sidebar-articles');
-        const sidebarSource = allHeadlines && allHeadlines.length ? allHeadlines : headlines;
-        if (sidebarSource && sidebarSource.length) {
-          sidebarArticles.innerHTML = '<p class="sidebar-articles-label">Latest</p>' +
-            sidebarSource.map(h => `
-              <div class="sidebar-article">
-                <a href="${escapeHtml(h.url)}" target="_blank" rel="noopener noreferrer">
-                  <span class="sidebar-article-source">${escapeHtml(h.source)}</span>
-                  <span class="sidebar-article-title">${escapeHtml(h.title)}</span>
-                </a>
-              </div>`).join('');
-        }
-
-        sidebarEl.removeAttribute('hidden');
-        document.body.classList.add('has-conflict');
       }
+
+      const link = document.getElementById('conflict-casualties-link');
+      if (casualtiesLabel) link.textContent = casualtiesLabel;
+      if (casualtiesUrl) link.href = casualtiesUrl;
 
       // Update page title
       document.title = mapping.label + ' — Did We Start A War Today?';

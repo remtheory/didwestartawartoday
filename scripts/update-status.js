@@ -99,25 +99,36 @@ async function fetchHeadlines() {
 
 // ── Claude analysis ──────────────────────────────────────────────────────────
 
-async function analyzeWithClaude(headlines) {
+async function analyzeWithClaude(headlines, existingStatus) {
   // Give Claude index numbers only — URLs stay on our side to prevent hallucination
   const headlineText = headlines
     .map((h, i) => `${i + 1}. [${h.source}] ${h.title}${h.description ? '\n   ' + h.description : ''}`)
     .join('\n\n');
 
+  // If there's an active conflict, tell Claude about it so it can use "ongoing" correctly
+  const conflictContext = existingStatus.activeConflict && existingStatus.conflictName
+    ? `IMPORTANT CONTEXT: The US is currently in an active conflict (${existingStatus.conflictName}, started ${existingStatus.conflictStartDate}). If today's news shows continued fighting from this existing conflict with no major new escalation, use "ongoing". Only use "yes" if there is a genuinely NEW military action or a major escalation beyond what is already happening.\n\n`
+    : '';
+
   const prompt = `You are assessing whether the United States initiated or significantly escalated armed conflict today.
+
+Use these statuses:
+- "yes": The US started a NEW war or made a major NEW escalation today (e.g. first strikes, invading a new country).
+- "ongoing": The US is already in an active war and today's news is continued fighting — not a new initiation or major escalation.
+- "unclear": Hard to tell whether something new happened.
+- "no": No armed conflict today.
 
 "Armed conflict" includes: airstrikes, military invasions, significant troop deployments into active conflict zones, or weapons transfers that directly enable active combat operations.
 
-It does NOT include: ongoing existing operations with no new escalation, sanctions, diplomatic threats, military posturing without action, or routine military activities.
+It does NOT include: sanctions, diplomatic threats, military posturing without action, or routine military activities.
 
-Here are today's top news headlines (each has a number):
+${conflictContext}Here are today's top news headlines (each has a number):
 
 ${headlineText}
 
 Respond ONLY with valid JSON in this exact format, with no additional text before or after:
 {
-  "status": "no" | "unclear" | "yes",
+  "status": "no" | "unclear" | "ongoing" | "yes",
   "tagline": "One wry sentence, max 12 words.",
   "headline_indices": [1, 2]
 }
@@ -175,7 +186,7 @@ For headline_indices, pick 2-3 numbers from the list above that are most relevan
   }
 
   // Validate structure
-  if (!['no', 'unclear', 'yes'].includes(parsed.status)) {
+  if (!['no', 'unclear', 'ongoing', 'yes'].includes(parsed.status)) {
     throw new Error(`Invalid status from Claude: ${parsed.status}`);
   }
   if (!parsed.tagline || typeof parsed.tagline !== 'string') {
@@ -205,6 +216,12 @@ For headline_indices, pick 2-3 numbers from the list above that are most relevan
 // ── Write status.json ────────────────────────────────────────────────────────
 
 function writeStatus(result) {
+  // Preserve manually-set conflict fields across daily runs
+  let existing = {};
+  try {
+    existing = JSON.parse(fs.readFileSync(STATUS_FILE, 'utf8'));
+  } catch (e) {}
+
   const output = {
     status: result.status,
     tagline: result.tagline,
@@ -219,6 +236,11 @@ function writeStatus(result) {
       url: h.url,
       source: h.source,
     })),
+    ...(existing.activeConflict !== undefined && { activeConflict: existing.activeConflict }),
+    ...(existing.conflictName      && { conflictName:      existing.conflictName }),
+    ...(existing.conflictStartDate && { conflictStartDate: existing.conflictStartDate }),
+    ...(existing.casualtiesUrl     && { casualtiesUrl:     existing.casualtiesUrl }),
+    ...(existing.casualtiesLabel   && { casualtiesLabel:   existing.casualtiesLabel }),
   };
 
   fs.writeFileSync(STATUS_FILE, JSON.stringify(output, null, 2) + '\n', 'utf8');
@@ -233,8 +255,20 @@ async function main() {
   console.log(`Time: ${new Date().toISOString()}`);
 
   try {
+    let existingStatus = {};
+    try { existingStatus = JSON.parse(fs.readFileSync(STATUS_FILE, 'utf8')); } catch (e) {}
+
+    if (existingStatus.statusLock) {
+      console.log(`statusLock is set — keeping status "${existingStatus.status}", skipping analysis.`);
+      // Update the timestamp so the site shows a fresh "updated" time
+      existingStatus.updated = new Date().toISOString();
+      fs.writeFileSync(STATUS_FILE, JSON.stringify(existingStatus, null, 2) + '\n', 'utf8');
+      console.log('Done.');
+      return;
+    }
+
     const headlines = await fetchHeadlines();
-    const result = await analyzeWithClaude(headlines);
+    const result = await analyzeWithClaude(headlines, existingStatus);
     writeStatus(result);
     console.log('Done.');
   } catch (err) {
