@@ -17,11 +17,11 @@ const STATUS_FILE = path.join(__dirname, '..', 'status.json');
 
 // ── Config ──────────────────────────────────────────────────────────────────
 
-const NEWS_API_KEY = process.env.NEWS_API_KEY;
+const PERIGON_API_KEY = process.env.PERIGON_API_KEY;
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
-if (!NEWS_API_KEY || !ANTHROPIC_API_KEY) {
-  console.error('Missing required environment variables: NEWS_API_KEY, ANTHROPIC_API_KEY');
+if (!PERIGON_API_KEY || !ANTHROPIC_API_KEY) {
+  console.error('Missing required environment variables: PERIGON_API_KEY, ANTHROPIC_API_KEY');
   process.exit(1);
 }
 
@@ -38,6 +38,18 @@ const SEARCH_KEYWORDS = [
 
 const CLAUDE_MODEL = 'claude-sonnet-4-6';
 
+// Sources excluded for being state media, unreliable, or highly biased
+const EXCLUDED_DOMAINS = [
+  'rt.com',           // Russian state media
+  'sputniknews.com',  // Russian state media
+  'tass.com',         // Russian state media
+  'xinhuanet.com',    // Chinese state media
+  'globaltimes.cn',   // Chinese state media
+  'presstv.ir',       // Iranian state media
+  'breitbart.com',
+  'infowars.com',
+];
+
 // ── Fetch headlines ──────────────────────────────────────────────────────────
 
 async function fetchHeadlines() {
@@ -47,38 +59,40 @@ async function fetchHeadlines() {
   yesterday.setDate(yesterday.getDate() - 1);
   const fromDate = yesterday.toISOString().split('T')[0];
 
-  const url = new URL('https://newsapi.org/v2/everything');
+  const url = new URL('https://api.goperigon.com/v1/all');
   url.searchParams.set('q', query);
   url.searchParams.set('from', fromDate);
-  url.searchParams.set('sortBy', 'relevancy');
+  url.searchParams.set('sortBy', 'date');
   url.searchParams.set('language', 'en');
-  url.searchParams.set('pageSize', '20');
-  url.searchParams.set('apiKey', NEWS_API_KEY);
+  url.searchParams.set('size', '20');
+  url.searchParams.set('paywall', 'false');
+  url.searchParams.set('apiKey', PERIGON_API_KEY);
 
-  console.log(`Fetching headlines from NewsAPI (from ${fromDate})...`);
+  console.log(`Fetching headlines from Perigon (from ${fromDate})...`);
 
   const res = await fetch(url.toString());
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`NewsAPI error ${res.status}: ${body}`);
+    throw new Error(`Perigon API error ${res.status}: ${body}`);
   }
 
   const data = await res.json();
 
   if (!data.articles || data.articles.length === 0) {
-    throw new Error('No articles returned from NewsAPI');
+    throw new Error('No articles returned from Perigon');
   }
 
   console.log(`Got ${data.articles.length} articles.`);
 
-  // Return simplified headline objects
+  // Return simplified headline objects, excluding untrusted sources
   return data.articles
-    .filter(a => a.title && a.url && a.source?.name)
+    .filter(a => a.title && a.url)
+    .filter(a => !EXCLUDED_DOMAINS.some(domain => a.url.includes(domain)))
     .slice(0, 15)
     .map(a => ({
-      title: a.title.replace(/ - [^-]+$/, '').trim(), // strip source suffix
+      title: a.title.trim(),
       url: a.url,
-      source: a.source.name,
+      source: a.source?.domain || a.source?.name || 'Unknown',
       description: a.description || '',
     }));
 }
@@ -86,6 +100,7 @@ async function fetchHeadlines() {
 // ── Claude analysis ──────────────────────────────────────────────────────────
 
 async function analyzeWithClaude(headlines) {
+  // Give Claude index numbers only — URLs stay on our side to prevent hallucination
   const headlineText = headlines
     .map((h, i) => `${i + 1}. [${h.source}] ${h.title}${h.description ? '\n   ' + h.description : ''}`)
     .join('\n\n');
@@ -96,7 +111,7 @@ async function analyzeWithClaude(headlines) {
 
 It does NOT include: ongoing existing operations with no new escalation, sanctions, diplomatic threats, military posturing without action, or routine military activities.
 
-Here are today's top news headlines:
+Here are today's top news headlines (each has a number):
 
 ${headlineText}
 
@@ -104,38 +119,41 @@ Respond ONLY with valid JSON in this exact format, with no additional text befor
 {
   "status": "no" | "unclear" | "yes",
   "tagline": "One wry sentence, max 12 words.",
-  "headlines": [
-    { "title": "...", "url": "...", "source": "..." },
-    { "title": "...", "url": "...", "source": "..." }
-  ]
+  "headline_indices": [1, 2]
 }
 
-Choose 2-3 of the most relevant headlines from the provided list for the headlines array. If status is "no", pick the most relevant peaceful/routine headlines. The tagline should be darkly wry and specific to today's situation.`;
+For headline_indices, pick 2-3 numbers from the list above that are most relevant to your determination. Do NOT include any URLs or titles in your response — only the index numbers. The tagline should be darkly wry and specific to today's situation.`;
 
   console.log('Sending to Claude for analysis...');
 
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: CLAUDE_MODEL,
-      max_tokens: 512,
-      messages: [
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
-    }),
-  });
+  // Retry up to 3 times with exponential backoff for transient errors (e.g. 529 overloaded)
+  let res;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: CLAUDE_MODEL,
+        max_tokens: 256,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    });
 
-  if (!res.ok) {
+    if (res.ok) break;
+
     const body = await res.text();
-    throw new Error(`Anthropic API error ${res.status}: ${body}`);
+    const retryable = res.status === 529 || res.status === 503 || res.status === 500;
+    if (!retryable || attempt === 3) {
+      throw new Error(`Anthropic API error ${res.status}: ${body}`);
+    }
+
+    const waitMs = attempt * 10000; // 10s, then 20s
+    console.log(`Attempt ${attempt} failed (${res.status}), retrying in ${waitMs / 1000}s...`);
+    await new Promise(r => setTimeout(r, waitMs));
   }
 
   const data = await res.json();
@@ -163,11 +181,25 @@ Choose 2-3 of the most relevant headlines from the provided list for the headlin
   if (!parsed.tagline || typeof parsed.tagline !== 'string') {
     throw new Error('Missing or invalid tagline from Claude');
   }
-  if (!Array.isArray(parsed.headlines) || parsed.headlines.length === 0) {
-    throw new Error('Missing or empty headlines from Claude');
+  if (!Array.isArray(parsed.headline_indices) || parsed.headline_indices.length === 0) {
+    throw new Error('Missing or empty headline_indices from Claude');
   }
 
-  return parsed;
+  // Resolve indices back to real headline objects (with real URLs from NewsAPI)
+  const chosenHeadlines = parsed.headline_indices
+    .map(i => headlines[i - 1])  // indices are 1-based
+    .filter(Boolean);
+
+  if (chosenHeadlines.length === 0) {
+    throw new Error('Claude returned invalid headline indices');
+  }
+
+  return {
+    status: parsed.status,
+    tagline: parsed.tagline,
+    headlines: chosenHeadlines,
+    allHeadlines: headlines, // full set for sidebar war coverage
+  };
 }
 
 // ── Write status.json ────────────────────────────────────────────────────────
@@ -178,6 +210,11 @@ function writeStatus(result) {
     tagline: result.tagline,
     updated: new Date().toISOString(),
     headlines: result.headlines.map(h => ({
+      title: h.title,
+      url: h.url,
+      source: h.source,
+    })),
+    allHeadlines: result.allHeadlines.map(h => ({
       title: h.title,
       url: h.url,
       source: h.source,

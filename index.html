@@ -22,15 +22,56 @@
 </head>
 <body class="loading">
 
-  <div class="site-wrapper">
-    <p class="site-title">didwestartawartoday.com</p>
+  <p class="site-title">didwestartawartoday.com</p>
 
-    <h1 class="status-answer" id="status-answer">—</h1>
-    <p class="status-tagline" id="status-tagline">Loading today's assessment...</p>
+  <div class="page-layout">
 
-    <hr class="divider" />
+    <!-- ── Main column ── -->
+    <div class="main-col">
+      <h1 class="status-answer" id="status-answer">—</h1>
+      <p class="status-tagline" id="status-tagline">Loading today's assessment...</p>
 
-    <div class="headlines" id="headlines" aria-label="Source headlines"></div>
+      <hr class="divider" />
+
+      <div class="headlines" id="headlines" aria-label="Source headlines"></div>
+    </div>
+
+    <!-- ── Conflict sidebar (only visible when activeConflict: true) ── -->
+    <aside class="conflict-sidebar" id="conflict-sidebar" hidden>
+      <p class="conflict-label" id="conflict-label"></p>
+
+      <hr class="sidebar-divider" />
+
+      <div class="conflict-trackers">
+        <p class="conflict-casualties">
+          <a id="conflict-casualties-link" href="https://airwars.org" target="_blank" rel="noopener noreferrer">
+            Track civilian casualties via Airwars
+          </a>
+        </p>
+        <p class="conflict-casualties">
+          <a href="https://acleddata.com/global-analysis/spotlight-areas" target="_blank" rel="noopener noreferrer">
+            Conflict index via ACLED
+          </a>
+        </p>
+      </div>
+
+      <div class="conflict-video">
+        <iframe
+          src="https://www.youtube.com/embed/hZJRJpbGkG4"
+          title="War Is A Racket"
+          frameborder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowfullscreen>
+        </iframe>
+      </div>
+
+      <div class="sidebar-articles" id="sidebar-articles" aria-label="Latest articles"></div>
+
+      <p class="conflict-who-benefits">
+        Ask yourself who war benefits. It's not you. Remember when they say "we can't afford universal healthcare" — they have no problem paying for war. <a href="https://www.youtube.com/watch?v=_gyDzUgGP1M" target="_blank" rel="noopener noreferrer">Don't think for one second this is making us safer.</a>
+      </p>
+    </aside>
+
   </div>
 
   <footer>
@@ -40,9 +81,10 @@
 
   <script>
     const STATUS_MAP = {
-      no:      { label: 'No.',      bodyClass: 'status-no' },
-      unclear: { label: 'Maybe?',   bodyClass: 'status-unclear' },
-      yes:     { label: 'Yes.',     bodyClass: 'status-yes' },
+      no:      { label: 'No.',                        bodyClass: 'status-no' },
+      ongoing: { label: 'Not today, but we\'re in it.', bodyClass: 'status-ongoing' },
+      unclear: { label: 'Maybe?',                     bodyClass: 'status-unclear' },
+      yes:     { label: 'Yes.',                       bodyClass: 'status-yes' },
     };
 
     function formatDate(isoString) {
@@ -64,17 +106,15 @@
         return;
       }
 
-      const { status, tagline, updated, headlines } = data;
+      const { status, tagline, updated, headlines, allHeadlines, activeConflict, conflictName, conflictStartDate, casualtiesUrl, casualtiesLabel } = data;
       const mapping = STATUS_MAP[status] || STATUS_MAP['unclear'];
 
       // Apply status class to body
       document.body.classList.remove('loading');
       document.body.classList.add(mapping.bodyClass);
 
-      // Set answer
+      // Set answer and tagline
       document.getElementById('status-answer').textContent = mapping.label;
-
-      // Set tagline
       document.getElementById('status-tagline').textContent = tagline;
 
       // Set headlines
@@ -99,7 +139,38 @@
           'Last checked: ' + formatDate(updated);
       }
 
-      // Update page title with result
+      // Active conflict sidebar
+      const sidebarEl = document.getElementById('conflict-sidebar');
+      if (activeConflict && conflictStartDate) {
+        const start = new Date(conflictStartDate);
+        const now = new Date();
+        const dayCount = Math.floor((now - start) / (1000 * 60 * 60 * 24)) + 1;
+        const label = `${conflictName || 'Active conflict'} — Day ${dayCount}`;
+        document.getElementById('conflict-label').textContent = label;
+
+        const link = document.getElementById('conflict-casualties-link');
+        if (casualtiesLabel) link.textContent = casualtiesLabel;
+        if (casualtiesUrl) link.href = casualtiesUrl;
+
+        // Populate sidebar with all fetched headlines (broader war coverage)
+        const sidebarArticles = document.getElementById('sidebar-articles');
+        const sidebarSource = allHeadlines && allHeadlines.length ? allHeadlines : headlines;
+        if (sidebarSource && sidebarSource.length) {
+          sidebarArticles.innerHTML = '<p class="sidebar-articles-label">Latest</p>' +
+            sidebarSource.map(h => `
+              <div class="sidebar-article">
+                <a href="${escapeHtml(h.url)}" target="_blank" rel="noopener noreferrer">
+                  <span class="sidebar-article-source">${escapeHtml(h.source)}</span>
+                  <span class="sidebar-article-title">${escapeHtml(h.title)}</span>
+                </a>
+              </div>`).join('');
+        }
+
+        sidebarEl.removeAttribute('hidden');
+        document.body.classList.add('has-conflict');
+      }
+
+      // Update page title
       document.title = mapping.label + ' — Did We Start A War Today?';
     }
 
