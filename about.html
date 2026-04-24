@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>About — Did We Start A War Today?</title>
+  <meta name="description" content="Methodology and purpose behind didwestartawartoday.com" />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌐</text></svg>" />
+</head>
+<body class="about-page">
+
+  <div class="about-wrapper">
+    <a href="index.html" class="back-link">&larr; Back</a>
+
+    <h1>About This Site</h1>
+
+    <p>
+      This site exists to answer one blunt question, daily: did the United States
+      initiate or significantly escalate armed conflict today? Not rhetorically.
+      Not philosophically. Just: did it happen, yes or no, based on today's news.
+    </p>
+
+    <p>
+      It was inspired by the elegant simplicity of
+      <a href="https://isitchristmas.com" target="_blank" rel="noopener">isitchristmas.com</a>
+      — which, for the record, is also usually No. The difference is that Christmas
+      comes once a year and is generally considered a good thing.
+    </p>
+
+    <h2>How it works</h2>
+
+    <p>
+      Every day at noon UTC, a GitHub Action runs a script that fetches top
+      military and geopolitical headlines from a news API, then sends them to
+      the <a href="https://www.anthropic.com" target="_blank" rel="noopener">Claude API</a>
+      (claude-sonnet-4-6) with a prompt asking it to make a determination. The
+      result — status, tagline, and supporting headlines — is written to a
+      <code>status.json</code> file in the repo, which triggers an automatic
+      redeploy. What you see on the homepage is whatever that file says.
+    </p>
+
+    <h2>Status definitions</h2>
+
+    <div class="status-legend">
+      <div class="legend-item">
+        <span class="legend-dot no"></span>
+        <span><strong>No.</strong> — No new armed conflict initiated or significantly escalated today.</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-dot unclear"></span>
+        <span><strong>Unclear.</strong> — Something happened that may or may not qualify, depending on how you define "war."</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-dot yes"></span>
+        <span><strong>Yes.</strong> — Yeah.</span>
+      </div>
+    </div>
+
+    <h2>What counts</h2>
+
+    <p>
+      For the purposes of this site, "armed conflict" includes: airstrikes,
+      military invasions, significant new troop deployments into active conflict
+      zones, or weapons transfers that directly and immediately enable ongoing
+      combat operations. It does <em>not</em> include: ongoing operations that
+      were already underway with no new escalation, sanctions, diplomatic threats,
+      military posturing without action, or strongly worded press releases.
+    </p>
+
+    <h2>Important caveats</h2>
+
+    <p>
+      This site is a joke. A serious joke, but a joke. The determination is made
+      by an AI reading headlines — not by lawyers, historians, or anyone with
+      a security clearance. "War" is legally and politically contested when
+      you're the United States. The U.S. has been in varying states of armed
+      engagement continuously for most of the past several decades, which is
+      itself the whole point.
+    </p>
+
+    <p>
+      The <strong>Unclear</strong> status exists precisely because the U.S.
+      government has historically gone to great lengths to avoid calling things
+      what they are. If lawyers are arguing about it, we'll say so.
+    </p>
+
+    <h2>Source code</h2>
+
+    <p>
+      This site is fully open source. The code, the automation pipeline, and
+      the prompt are all visible on
+      <a href="https://github.com" target="_blank" rel="noopener">GitHub</a>.
+      Pull requests for better taglines welcome.
+    </p>
+  </div>
+
+</body>
+</html>
